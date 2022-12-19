@@ -1,4 +1,4 @@
-# @version ^0.3.3
+# @version ^0.3.7
 # Multiple Signature Contract
 
 event Deposit:
@@ -10,7 +10,7 @@ event SubmitTransaction:
     txIndex: indexed(uint256)
     to: indexed(address)
     value: uint256
-    data: bytes32
+    data: Bytes[256]
 event ConfirmTransaction:
     owner: indexed(address)
     txIndex: indexed(uint256)
@@ -29,15 +29,14 @@ numConfirmationsRequired: uint256
 struct Transaction: 
     to: address
     val: uint256
-    data: bytes32
-    fnSel: String[32]
+    data: Bytes[256]
     executed: bool
     numConfirmations: uint256
 
 
 isConfirmed: public(HashMap[uint256, HashMap[address, bool]])
 
-transactions: DynArray[Transaction, 100000]
+transactions: DynArray[Transaction, 10]
 
 
 @external
@@ -57,41 +56,42 @@ def __default__():
     log Deposit(msg.sender, msg.value, self.balance)
 
 @external
-def submitTransaction( _to: address, _val: uint256, _data: bytes32, _fnSel: String[32]):
+def submitTransaction( _to: address, _val: uint256, _data: Bytes[256]):
     assert self.isOwner[msg.sender] == True, "Not an Owner"
     txIndex: uint256 = len(self.transactions)
-    self.transactions.append(Transaction({to:_to, val:_val, data: _data, fnSel: _fnSel, executed: False, numConfirmations: 0}))    
+    self.transactions.append(Transaction({to:_to, val:_val, data: _data, executed: False, numConfirmations: 0}))    
 
 @external 
 def confirmTransaction(txIndex: uint256):
     assert self.isOwner[msg.sender]==True, "Not an Owner"
     assert txIndex < len(self.transactions), "Does Not Exist"
     assert self.transactions[txIndex].executed == False, "Transaction Already Executed"
-    assert self.isConfirmed[txIndex][msg.sender], "Transactions Already Confirmed"
+    assert self.isConfirmed[txIndex][msg.sender] == False, "Transactions Already Confirmed"
     self.transactions[txIndex].numConfirmations += 1
     self.isConfirmed[txIndex][msg.sender] = True
     log ConfirmTransaction(msg.sender, txIndex)
 
+
 @payable
 @external
-def executeTransaction(txIndex: uint256) -> Bytes[32]:
+def executeTransaction(txIndex: uint256) -> Bytes[256]:
     assert self.isOwner[msg.sender]==True, "Not an Owner"
     assert txIndex < len(self.transactions), "Does Not Exist"
     assert self.transactions[txIndex].executed == False, "Transaction Already Executed"
     assert self.transactions[txIndex].numConfirmations >= self.numConfirmationsRequired, "Insufficent Confirmations"
     self.transactions[txIndex].executed = True
     success: bool = False
-    response: Bytes[32] = b""
-    functionSelector: Bytes[32] = convert(self.transactions[txIndex].fnSel, Bytes[32])
+    response: Bytes[256] = b""
     success, response = raw_call(
         self.transactions[txIndex].to, 
-        _abi_encode(self.transactions[txIndex].data, (convert(keccak256(self.transactions[txIndex].fnSel), bytes4))),
-        max_outsize=32, 
+        self.transactions[txIndex].data,
+        max_outsize=256, 
         value = self.transactions[txIndex].val,
         revert_on_failure = False
     )
     assert success
     return response
+
 
 @nonpayable
 @external
@@ -114,12 +114,11 @@ def getTransactionCount() -> uint256:
 
 @view
 @external 
-def getTransaction(_txIndex: uint256) -> (address, uint256, bytes32, String[32], bool, uint256):
+def getTransaction(_txIndex: uint256) -> (address, uint256, Bytes[256], bool, uint256):
     return(
         self.transactions[_txIndex].to,
         self.transactions[_txIndex].val,
         self.transactions[_txIndex].data,
-        self.transactions[_txIndex].fnSel,
         self.transactions[_txIndex].executed,
         self.transactions[_txIndex].numConfirmations
     )

@@ -36,7 +36,7 @@ struct Transaction:
 
 isConfirmed: public(HashMap[uint256, HashMap[address, bool]])
 
-transactions: DynArray[Transaction, 10]
+transactions: DynArray[Transaction, 10000]
 
 
 @external

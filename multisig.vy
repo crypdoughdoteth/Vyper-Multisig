@@ -56,7 +56,7 @@ def __default__():
     log Deposit(msg.sender, msg.value, self.balance)
 
 @external
-def submitTransaction( _to: address, _val: uint256, _data: Bytes[512]):
+def submitTransaction( _to: address, _val: uint256, _data: Bytes[256]):
     assert self.isOwner[msg.sender] == True, "Not an Owner"
     txIndex: uint256 = len(self.transactions)
     self.transactions.append(Transaction({to:_to, val:_val, data: _data, executed: False, numConfirmations: 0}))    

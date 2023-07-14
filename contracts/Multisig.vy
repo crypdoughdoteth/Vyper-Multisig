@@ -99,7 +99,6 @@ def executeTransaction(txIndex: uint256) -> Bytes[256]:
     assert txIndex < len(self.transactions), "Does Not Exist"
     assert self.transactions[txIndex].executed == False, "Transaction Already Executed"
     assert self.transactions[txIndex].numConfirmations >= self.numConfirmationsRequired, "Insufficent Confirmations"
-    assert self.transactions[txIndex].val <= self.balance, "Insufficient multisig balance"
     self.transactions[txIndex].executed = True
     success: bool = False
     response: Bytes[256] = b""

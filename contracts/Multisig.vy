@@ -8,7 +8,7 @@
 @dev Basic implementation of a multisig
 """
 #######################################################################################  
-# CONFIGURATION
+# STRUCTURES
 ####################################################################################### 
 event Deposit:
     sender: indexed(address)
@@ -48,8 +48,7 @@ numConfirmationsRequired: uint256
 isConfirmed: public(HashMap[uint256, HashMap[address, bool]])
 
 # Dynamic Array with all the submitted transactions
-# Shouldn't we be popping the transactions that have been executed from this array after the tx confirmation?
-# The way it is now, there is a total of 10k txs that can be submitted using this multisig implementation (or is this not correct?)
+# Can we increase this to (2 ^ 256) - 1? 
 transactions: DynArray[Transaction, 10000]
 
 #######################################################################################  
@@ -101,19 +100,17 @@ def executeTransaction(txIndex: uint256) -> Bytes[256]:
     assert self.transactions[txIndex].executed == False, "Transaction Already Executed"
     assert self.transactions[txIndex].numConfirmations >= self.numConfirmationsRequired, "Insufficent Confirmations"
     assert self.transactions[txIndex].val <= self.balance, "Insufficient multisig balance"
+    self.transactions[txIndex].executed = True
     success: bool = False
     response: Bytes[256] = b""
     success, response = raw_call(
         self.transactions[txIndex].to, 
         self.transactions[txIndex].data,
-        max_outsize=256, # what's that?
+        max_outsize=256, 
         value = self.transactions[txIndex].val,
-        revert_on_failure = False # what is this and why we need it to be False?
+        revert_on_failure = False
     )
     assert success
-    # label the tx as executed after success is confirmed
-    self.transactions[txIndex].executed = True
-    # shouldn't we pop out the tx from self.transactions if it has been executed correctly?
     return response
 
 
